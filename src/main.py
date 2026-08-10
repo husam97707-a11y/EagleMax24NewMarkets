@@ -1,3 +1,4 @@
+import asyncio
 import feedparser
 import hashlib
 import json
@@ -12,6 +13,10 @@ from telegram.error import TelegramError
 import config
 
 
+# =========================
+# Check configuration
+# =========================
+
 if not config.BOT_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN غير موجود")
 
@@ -19,23 +24,29 @@ if not config.CHANNEL_ID:
     raise ValueError("TELEGRAM_CHANNEL_ID غير موجود")
 
 
+# =========================
+# Translator
+# =========================
+
 translator = GoogleTranslator(
     source="en",
     target="ar"
 )
 
-bot = Bot(
-    token=config.BOT_TOKEN
-)
 
+# =========================
+# Load sent news
+# =========================
 
 def load_sent_news():
+
     try:
         with open(
             config.DEDUP_FILE,
             "r",
             encoding="utf-8"
         ) as file:
+
             data = json.load(file)
 
             if isinstance(data, list):
@@ -47,12 +58,18 @@ def load_sent_news():
         return []
 
     except Exception as error:
-        print(f"خطأ في تحميل الأخبار: {error}")
+        print(f"❌ خطأ في تحميل الأخبار: {error}")
         return []
 
 
+# =========================
+# Save sent news
+# =========================
+
 def save_sent_news(news_list):
+
     try:
+
         if len(news_list) > 500:
             news_list = news_list[-500:]
 
@@ -61,6 +78,7 @@ def save_sent_news(news_list):
             "w",
             encoding="utf-8"
         ) as file:
+
             json.dump(
                 news_list,
                 file,
@@ -69,10 +87,15 @@ def save_sent_news(news_list):
             )
 
     except Exception as error:
-        print(f"خطأ في حفظ الأخبار: {error}")
+        print(f"❌ خطأ في حفظ الأخبار: {error}")
 
+
+# =========================
+# News hash
+# =========================
 
 def get_news_hash(title, summary):
+
     text = (
         title.strip()
         + " "
@@ -84,7 +107,12 @@ def get_news_hash(title, summary):
     ).hexdigest()
 
 
+# =========================
+# Filter news
+# =========================
+
 def filter_news(title, summary):
+
     text = (
         title
         + " "
@@ -97,7 +125,12 @@ def filter_news(title, summary):
     )
 
 
+# =========================
+# Clean HTML
+# =========================
+
 def clean_html(text):
+
     if not text:
         return ""
 
@@ -116,7 +149,12 @@ def clean_html(text):
     return text.strip()
 
 
+# =========================
+# Translation
+# =========================
+
 def translate_text(text):
+
     if not text:
         return ""
 
@@ -124,11 +162,16 @@ def translate_text(text):
         return translator.translate(text)
 
     except Exception as error:
-        print(f"خطأ في الترجمة: {error}")
+        print(f"⚠️ خطأ في الترجمة: {error}")
         return text
 
 
+# =========================
+# Impact detection
+# =========================
+
 def detect_impact(title, summary):
+
     text = (
         title
         + " "
@@ -175,18 +218,33 @@ def detect_impact(title, summary):
     return "🟡 متوسطة"
 
 
-def format_news(title, summary, link, published):
+# =========================
+# Format news
+# =========================
+
+def format_news(
+    title,
+    summary,
+    link,
+    published
+):
 
     ar_title = translate_text(title)
-    ar_summary = translate_text(summary[:500])
+
+    ar_summary = translate_text(
+        summary[:500]
+    )
 
     try:
+
         dt = datetime(*published[:6])
+
         time_str = dt.strftime(
             "%d-%m-%Y %H:%M"
         )
 
     except Exception:
+
         time_str = datetime.now().strftime(
             "%d-%m-%Y %H:%M"
         )
@@ -197,8 +255,11 @@ def format_news(title, summary, link, published):
     )
 
     try:
+
         source = link.split("/")[2]
+
     except Exception:
+
         source = "وكالات"
 
     message = (
@@ -215,9 +276,14 @@ def format_news(title, summary, link, published):
     return message
 
 
+# =========================
+# Fetch news
+# =========================
+
 def fetch_news():
 
     all_news = []
+
     sent_hashes = load_sent_news()
 
     for feed_url in config.RSS_FEEDS:
@@ -225,10 +291,17 @@ def fetch_news():
         print(f"🔎 فحص المصدر: {feed_url}")
 
         try:
-            feed = feedparser.parse(feed_url)
+
+            feed = feedparser.parse(
+                feed_url
+            )
 
             if not feed.entries:
-                print("⚠️ لا توجد أخبار في هذا المصدر")
+
+                print(
+                    "⚠️ لا توجد أخبار في هذا المصدر"
+                )
+
                 continue
 
             for entry in feed.entries[:10]:
@@ -244,6 +317,7 @@ def fetch_news():
                 )
 
                 if not summary:
+
                     summary = entry.get(
                         "description",
                         ""
@@ -260,7 +334,10 @@ def fetch_news():
                 )
 
                 title = clean_html(title)
-                summary = clean_html(summary)
+
+                summary = clean_html(
+                    summary
+                )
 
                 if not title:
                     continue
@@ -294,6 +371,7 @@ def fetch_news():
                 )
 
         except Exception as error:
+
             print(
                 f"❌ خطأ في المصدر "
                 f"{feed_url}: {error}"
@@ -302,10 +380,18 @@ def fetch_news():
     return all_news
 
 
-def send_to_telegram(message):
+# =========================
+# Send Telegram
+# =========================
+
+async def send_to_telegram(
+    bot,
+    message
+):
 
     try:
-        bot.send_message(
+
+        await bot.send_message(
             chat_id=config.CHANNEL_ID,
             text=message,
             parse_mode="HTML",
@@ -315,31 +401,54 @@ def send_to_telegram(message):
         return True
 
     except TelegramError as error:
+
         print(
             f"❌ خطأ Telegram: {error}"
         )
+
         return False
 
     except Exception as error:
+
         print(
             f"❌ خطأ أثناء الإرسال: {error}"
         )
+
         return False
 
 
-def main():
+# =========================
+# Main
+# =========================
+
+async def main():
 
     print("=" * 50)
-    print("🚀 Eagle Max 24 News Bot")
+
     print(
-        f"⏰ وقت التشغيل: {datetime.now()}"
+        "🚀 Eagle Max 24 News Bot"
     )
+
+    print(
+        f"⏰ وقت التشغيل: "
+        f"{datetime.now()}"
+    )
+
     print("=" * 50)
+
+    print(
+        f"📡 عدد مصادر RSS: "
+        f"{len(config.RSS_FEEDS)}"
+    )
 
     news_list = fetch_news()
 
     if not news_list:
-        print("📭 لا توجد أخبار جديدة")
+
+        print(
+            "📭 لا توجد أخبار جديدة"
+        )
+
         return
 
     print(
@@ -348,30 +457,58 @@ def main():
     )
 
     sent_hashes = load_sent_news()
+
     sent_count = 0
 
-    for news_hash, message in news_list:
+    async with Bot(
+        token=config.BOT_TOKEN
+    ) as bot:
 
-        if send_to_telegram(message):
+        for news_hash, message in news_list:
 
-            sent_hashes.append(news_hash)
-            sent_count += 1
+            success = await send_to_telegram(
+                bot,
+                message
+            )
 
-            print("✅ تم إرسال خبر بنجاح")
+            if success:
 
-            time.sleep(2)
+                sent_hashes.append(
+                    news_hash
+                )
 
-        else:
-            print("❌ فشل إرسال الخبر")
+                sent_count += 1
 
-    save_sent_news(sent_hashes)
+                print(
+                    "✅ تم إرسال خبر بنجاح"
+                )
 
-    print("=" * 50)
-    print(
-        f"✅ تم إرسال {sent_count} أخبار"
+                await asyncio.sleep(2)
+
+            else:
+
+                print(
+                    "❌ فشل إرسال الخبر"
+                )
+
+    save_sent_news(
+        sent_hashes
     )
+
     print("=" * 50)
 
+    print(
+        f"✅ تم إرسال "
+        f"{sent_count} أخبار"
+    )
+
+    print("=" * 50)
+
+
+# =========================
+# Run
+# =========================
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
+```
