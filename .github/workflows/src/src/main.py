@@ -4,12 +4,12 @@ import json
 import time
 import re
 from datetime import datetime
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 from telegram import Bot
 from telegram.error import TelegramError
 import config
 
-translator = Translator()
+translator = GoogleTranslator(source='en', target='ar')
 bot = Bot(token=config.BOT_TOKEN)
 
 def load_sent_news():
@@ -38,8 +38,8 @@ def filter_news(title, summary):
 
 def translate_text(text):
     try:
-        result = translator.translate(text, dest='ar')
-        return result.text
+        result = translator.translate(text)
+        return result
     except:
         return text
 
