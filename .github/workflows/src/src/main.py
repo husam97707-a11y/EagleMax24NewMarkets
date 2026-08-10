@@ -8,7 +8,12 @@ from deep_translator import GoogleTranslator
 from telegram import Bot
 from telegram.error import TelegramError
 import config
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import config
 translator = GoogleTranslator(source='en', target='ar')
 bot = Bot(token=config.BOT_TOKEN)
 
