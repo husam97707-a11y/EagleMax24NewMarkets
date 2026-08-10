@@ -1,27 +1,46 @@
 ```python
-import feedparser
-import hashlib
-import json
-import time
-import re
-import sys
+import os
 
-from datetime import datetime
-from pathlib import Path
-from deep_translator import GoogleTranslator
-from telegram import Bot
-from telegram.error import TelegramError
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-import config
+CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 
-translator = GoogleTranslator(
-    source="en",
-    target="ar"
-)
 
-bot = Bot(
-    token=config.BOT_TOKEN
-)
+DEDUP_FILE = "sent_news.json"
+
+
+KEYWORDS = [
+    "gold",
+    "xau",
+    "forex",
+    "currency",
+    "dollar",
+    "usd",
+    "fed",
+    "federal reserve",
+    "interest rate",
+    "inflation",
+    "cpi",
+    "ppi",
+    "nfp",
+    "jobs",
+    "employment",
+    "oil",
+    "crypto",
+    "bitcoin",
+    "ethereum",
+    "economy",
+    "economic",
+    "market",
+    "markets"
+]
+
+
+RSS_FEEDS = [
+    "https://feeds.reuters.com/reuters/businessNews",
+    "https://feeds.reuters.com/reuters/worldNews",
+    "https://feeds.bbci.co.uk/news/business/rss.xml",
+    "https://feeds.bbci.co.uk/news/world/rss.xml"
+]
 ```
